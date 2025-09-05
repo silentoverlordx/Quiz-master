@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuizVerse | Lobby</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- ✅ Correct Supabase v2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg,#4f46e5,#9333ea,#4f46e5); }
+    h1 { font-family: 'Bungee', cursive; }
+    .input-glow:focus { box-shadow: 0 0 15px rgba(255, 193, 7, 0.7); border-color: #fbbf24; }
+    .gradient-btn { background-size: 200% 200%; background-image: linear-gradient(270deg, #fbbf24, #ec4899, #8b5cf6, #fbbf24); animation: gradientShift 4s ease infinite; color:white; font-weight:bold; border-radius:12px; padding:0.5rem 1rem; cursor:pointer; transition:0.3s; }
+    .gradient-btn:hover { box-shadow:0 0 20px rgba(236,72,153,0.8); transform:scale(1.05);}
+    @keyframes gradientShift {0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+    .alert { position: fixed; top: 20px; right: 20px; background:#ec4899; color:white; padding:1rem 1.5rem; border-radius:8px; box-shadow:0 0 15px rgba(0,0,0,0.3); display:none; z-index:9999; font-weight:bold; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center px-4 text-white">
+
+  <h1 class="text-4xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-pink-500 to-purple-500">🎮 QuizVerse Lobby</h1>
+
+  <div class="bg-white text-gray-900 p-6 rounded-2xl shadow-xl w-full max-w-md space-y-4">
+    <div>
+      <label class="block font-semibold mb-1">Create Room</label>
+      <input type="text" id="create-room-code" placeholder="Enter room code (optional)" class="w-full px-4 py-2 rounded-lg border border-gray-300 input-glow mb-2">
+      <button id="create-room-btn" class="gradient-btn w-full">Create Room</button>
+    </div>
+
+    <div>
+      <label class="block font-semibold mb-1">Join Room</label>
+      <input type="text" id="join-room-code" placeholder="Enter room code" class="w-full px-4 py-2 rounded-lg border border-gray-300 input-glow mb-2">
+      <button id="join-room-btn" class="gradient-btn w-full">Join Room</button>
+    </div>
+
+    <button id="logout-btn" class="gradient-btn w-full bg-red-500 hover:bg-red-600 mt-4">Logout</button>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <!-- Config file should define window.supabaseConfig = { url: "...", key: "..." } -->
+  <script src="config.js"></script>
+  <script>
+    // ✅ Initialize Supabase client correctly
+    const client = supabase.createClient(window.supabaseConfig.url, window.supabaseConfig.key);
+
+    let currentUser = null;
+
+    // ✅ Get current user session
+    (async () => {
+      const { data, error } = await client.auth.getSession();
+      if (!data.session) {
+        window.location.href = 'login.html';
+      } else {
+        currentUser = data.session.user;
+      }
+    })();
+
+    // ✅ Reusable alert
+    function showAlert(msg, color="#ec4899"){
+      const alertBox = document.getElementById('alert');
+      alertBox.innerText = msg;
+      alertBox.style.background = color;
+      alertBox.style.display = 'block';
+      setTimeout(()=>alertBox.style.display='none',3000);
+    }
+
+    // ✅ Create Room
+    document.getElementById('create-room-btn').addEventListener('click', async ()=>{
+      let code = document.getElementById('create-room-code').value.trim();
+      if(!code) code = Math.random().toString(36).substring(2,8).toUpperCase();
+
+      if (!currentUser) return showAlert('User not loaded yet! Please try again.');
+
+      const { data, error } = await client.from('rooms').insert([
+        { room_code: code, host_id: currentUser.id, quiz_status: 'waiting' }
+      ]);
+      if(error) return showAlert('Error creating room: '+error.message);
+      showAlert(`Room created! Code: ${code}`, '#22c55e');
+      confetti({ particleCount:100, spread:70, origin:{y:0.6} });
+      setTimeout(()=>location.href=`room.html?room=${code}`,1000);
+    });
+
+    // ✅ Join Room
+    document.getElementById('join-room-btn').addEventListener('click', async ()=>{
+      const code = document.getElementById('join-room-code').value.trim();
+      if(!code) return showAlert('Enter a room code!');
+
+      const { data, error } = await client.from('rooms').select('*').eq('room_code', code).single();
+      if(error || !data) return showAlert('Room not found!');
+      showAlert(`Joining room: ${code}`, '#22c55e');
+      setTimeout(()=>location.href=`room.html?room=${code}`,800);
+    });
+
+    // ✅ Logout
+    document.getElementById('logout-btn').addEventListener('click', async ()=>{
+      const { error } = await client.auth.signOut();
+      if(error) return showAlert('Logout failed!');
+      window.location.href = 'login.html';
+    });
+  </script>
+</body>
+</html>

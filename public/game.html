@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>QuizVerse — Game</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    h1, .brand { font-family: 'Bungee', cursive; }
+    .timer-ring { stroke-dasharray: 440; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; }
+    .btn-answer:focus { outline: 3px solid rgba(99,102,241,0.35); outline-offset: 3px; }
+    .correct { animation: popCorrect 400ms ease forwards; }
+    .wrong { animation: shakeWrong 420ms ease forwards; }
+    @keyframes popCorrect { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    @keyframes shakeWrong { 0% { transform: translateX(0);} 20% { transform: translateX(-6px);} 40% { transform: translateX(6px);} 60% { transform: translateX(-4px);} 80% { transform: translateX(2px);} 100% { transform: translateX(0);} }
+    .fade-in { animation: fadeIn 360ms ease forwards; opacity: 0; }
+    @keyframes fadeIn { to { opacity: 1; } }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-900 via-purple-700 to-indigo-900 min-h-screen text-white p-6">
+
+<header class="max-w-5xl mx-auto flex items-center justify-between">
+  <div class="flex items-center gap-4">
+    <div class="brand text-2xl sm:text-3xl">🚀 QuizVerse</div>
+    <div class="hidden sm:block text-gray-300">Battle • Learn • Win</div>
+  </div>
+  <div class="flex items-center gap-4">
+    <div id="live-stats" class="text-sm text-teal-300">🎮 Demo Mode</div>
+    <button id="leave-btn" class="bg-white text-indigo-800 px-3 py-1 rounded-full font-semibold hover:scale-105 transition">Leave</button>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+  <!-- LEFT: Game Card -->
+  <section class="lg:col-span-2 bg-white/5 rounded-2xl p-6 shadow-lg">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <div id="avatar-preview" class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-pink-500 flex items-center justify-center text-indigo-900 font-bold">A</div>
+        <div>
+          <div id="player-name" class="font-semibold">You</div>
+          <div id="streak" class="text-xs text-amber-300">🔥 Streak: 0</div>
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-sm text-gray-200">Score</div>
+        <div id="score" class="text-2xl font-bold">0</div>
+      </div>
+    </div>
+
+    <!-- Question area -->
+    <div id="question-card" class="rounded-xl bg-white/10 p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="w-20 h-20 relative">
+          <svg viewBox="0 0 150 150" class="w-20 h-20">
+            <defs>
+              <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#F59E0B" />
+                <stop offset="100%" stop-color="#EC4899" />
+              </linearGradient>
+            </defs>
+            <circle cx="75" cy="75" r="70" stroke="rgba(255,255,255,0.08)" stroke-width="10" fill="transparent"></circle>
+            <circle id="timer-ring" cx="75" cy="75" r="70" stroke="url(#grad)" stroke-width="10" stroke-linecap="round" fill="transparent" class="timer-ring" transform="rotate(-90 75 75)"></circle>
+          </svg>
+          <div id="timer-text" class="absolute inset-0 flex items-center justify-center text-sm font-semibold">15s</div>
+        </div>
+        <div class="flex-1">
+          <div id="q-meta" class="text-xs text-amber-300 mb-1">Question <span id="q-index">1</span> / <span id="q-total">10</span></div>
+          <h2 id="question-text" class="text-lg sm:text-xl font-semibold leading-tight">Loading question...</h2>
+          <p id="q-difficulty" class="text-xs text-gray-300 mt-2">Difficulty: <span class="capitalize">medium</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Answers -->
+    <div id="answers" class="grid sm:grid-cols-2 gap-4"></div>
+
+    <!-- Controls -->
+    <div class="mt-6 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <button id="skip-btn" class="bg-white/10 px-4 py-2 rounded-full text-sm hover:bg-white/20 transition">⏭ Skip</button>
+        <button id="50-btn" class="bg-white/10 px-4 py-2 rounded-full text-sm hover:bg-white/20 transition">50/50</button>
+        <button id="hint-btn" class="bg-white/10 px-4 py-2 rounded-full text-sm hover:bg-white/20 transition">💡 Hint</button>
+      </div>
+      <div class="text-sm text-gray-300">Use keys <span class="font-semibold">1-4</span> to answer</div>
+    </div>
+  </section>
+
+  <!-- RIGHT: Sidebar -->
+  <aside class="bg-white/5 rounded-2xl p-6 h-fit shadow-lg flex flex-col gap-4">
+    <div class="text-sm text-gray-300">Leaderboard</div>
+    <div id="leaderboard" class="space-y-3"></div>
+
+    <div class="mt-3">
+      <div class="text-sm text-gray-300 mb-2">Progress</div>
+      <div class="bg-white/10 rounded-full h-3 overflow-hidden">
+        <div id="progress-bar" class="h-3 rounded-full bg-amber-400 w-0 transition-all"></div>
+      </div>
+      <div class="text-xs text-gray-300 mt-2">Best: <span id="best-score">0</span></div>
+    </div>
+
+    <div class="mt-4">
+      <button id="end-btn" class="w-full bg-amber-500 text-indigo-900 font-semibold px-4 py-2 rounded-full hover:scale-105 transition">End Game</button>
+    </div>
+  </aside>
+</main>
+
+<!-- Results Modal -->
+<div id="results-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-xl text-indigo-900">
+    <div class="flex items-center justify-between">
+      <h3 class="text-2xl font-bold">Game Over</h3>
+      <div id="final-score" class="text-3xl font-extrabold">0</div>
+    </div>
+    <p id="results-summary" class="text-gray-700 mt-2">Great run! Here's how you did.</p>
+
+    <div class="grid grid-cols-2 gap-3 mt-4 text-sm">
+      <div class="bg-indigo-50 p-3 rounded-lg"><div class="text-gray-500">Correct</div><div id="stat-correct" class="font-bold text-amber-500">0</div></div>
+      <div class="bg-indigo-50 p-3 rounded-lg"><div class="text-gray-500">Wrong</div><div id="stat-wrong" class="font-bold text-rose-500">0</div></div>
+      <div class="bg-indigo-50 p-3 rounded-lg"><div class="text-gray-500">Streak</div><div id="stat-streak" class="font-bold text-teal-500">0</div></div>
+      <div class="bg-indigo-50 p-3 rounded-lg"><div class="text-gray-500">Time Bonus</div><div id="stat-timebonus" class="font-bold text-purple-600">0</div></div>
+    </div>
+
+    <div class="mt-4 flex gap-3">
+      <button id="replay-btn" class="flex-1 bg-amber-500 text-indigo-900 rounded-full py-2 font-semibold hover:scale-105 transition">Play Again</button>
+      <button id="share-btn" class="flex-1 bg-white text-indigo-900 rounded-full py-2 border border-indigo-100 font-semibold">Share</button>
+    </div>
+  </div>
+</div>
+
+<!-- Audio -->
+<audio id="sfx-correct" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_207876fb60.mp3?filename=button-124476.mp3" preload="auto"></audio>
+<audio id="sfx-wrong" src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_8cf8b5a9f1.mp3?filename=retro-fail-buzzer-6343.mp3" preload="auto"></audio>
+<audio id="sfx-next" src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_9f8470a6b1.mp3?filename=click-124467.mp3" preload="auto"></audio>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+const supabaseUrl = 'https://ktgdshgwvkaktdnaspxj.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0Z2RzaGd3dmtha3RkbmFzcHhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwNDgyNzEsImV4cCI6MjA3MjYyNDI3MX0.qcrhP34PY5rxc8i2wR3sZtCKQGiTAk6JQ2XWOdp26_w';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// --- DOM elements ---
+const timerRing = document.querySelector('#timer-ring');
+const timerText = document.querySelector('#timer-text');
+const questionText = document.querySelector('#question-text');
+const qIndexEl = document.querySelector('#q-index');
+const qTotalEl = document.querySelector('#q-total');
+const answersEl = document.querySelector('#answers');
+const scoreEl = document.querySelector('#score');
+const streakEl = document.querySelector('#streak');
+const progressBar = document.querySelector('#progress-bar');
+const leaderboardEl = document.querySelector('#leaderboard');
+const bestScoreEl = document.querySelector('#best-score');
+const avatarPreview = document.querySelector('#avatar-preview');
+const resultsModal = document.querySelector('#results-modal');
+const finalScoreEl = document.querySelector('#final-score');
+const statCorrectEl = document.querySelector('#stat-correct');
+const statWrongEl = document.querySelector('#stat-wrong');
+const statStreakEl = document.querySelector('#stat-streak');
+const statTimeBonusEl = document.querySelector('#stat-timebonus');
+
+const sfxCorrect = document.querySelector('#sfx-correct');
+const sfxWrong = document.querySelector('#sfx-wrong');
+const sfxNext = document.querySelector('#sfx-next');
+
+// --- Game state ---
+const QUESTION_TIME = 15;
+let TOTAL_QUESTIONS = 10;
+let questions = [];
+let questionIndex = 0;
+let score = 0;
+let streak = 0;
+let correctCount = 0;
+let wrongCount = 0;
+let timeBonus = 0;
+let timer = null;
+let timeLeft = QUESTION_TIME;
+let best = parseInt(localStorage.getItem('quizverse_best') || '0',10);
+bestScoreEl.textContent = best;
+
+// --- Functions ---
+async function fetchQuestions() {
+  const { data, error } = await supabase.from('questions').select('*').limit(TOTAL_QUESTIONS);
+  if(error){ console.error(error); return []; }
+  return data.map(q => ({
+    text: q.question,
+    choices: q.choices,
+    correct: q.correct_index,
+    difficulty: q.difficulty
+  }));
+}
+
+async function fetchLeaderboard() {
+  const { data, error } = await supabase.from('scores').select('*').order('score',{ascending:false}).limit(5);
+  if(error) return;
+  leaderboardEl.innerHTML = '';
+  data.forEach((p,idx)=>{
+    const div = document.createElement('div');
+    div.className = 'flex items-center justify-between bg-white/5 p-3 rounded-lg';
+    div.innerHTML = `<div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center font-semibold">${idx+1}</div>
+      <div>
+        <div class="font-semibold">${p.username}</div>
+        <div class="text-xs text-gray-300">Rank ${idx+1}</div>
+      </div>
+    </div>
+    <div class="font-bold text-amber-400">${p.score}</div>`;
+    leaderboardEl.appendChild(div);
+  });
+}
+
+// Timer
+function startTimer(){ ... } // same logic
+function updateTimerVisual(){ ... }
+function clearTimer(){ ... }
+
+// Show question
+function nextQuestion(){ ... } // use questions[questionIndex], render buttons, setup timer
+
+// Answer selection
+function selectAnswer(idx){ ... } // handle correct/wrong, update score/streak, confetti
+
+// End game
+async function endGame(){
+  clearTimer();
+  progressBar.style.width = '100%';
+  finalScoreEl.textContent = score;
+  statCorrectEl.textContent = correctCount;
+  statWrongEl.textContent = wrongCount;
+  statStreakEl.textContent = streak;
+  statTimeBonusEl.textContent = timeBonus;
+  if(score>best){ best=score; localStorage.setItem('quizverse_best',best); }
+  resultsModal.classList.remove('hidden');
+  resultsModal.classList.add('flex');
+  // save score to Supabase
+  const username = prompt("Enter your name for leaderboard:") || "Guest";
+  await supabase.from('scores').insert({username,score,streak,time_bonus:timeBonus});
+  fetchLeaderboard();
+}
+
+// Button events
+document.querySelector('#leave-btn').addEventListener('click',()=>location.href='index.html');
+document.querySelector('#end-btn').addEventListener('click',endGame);
+document.querySelector('#replay-btn').addEventListener('click',()=>{ resultsModal.classList.add('hidden'); resultsModal.classList.remove('flex'); startGame(); });
+document.querySelector('#50-btn').addEventListener('click',()=>{
+  const q = questions[questionIndex];
+  const correct = q.correct;
+  const choices = Array.from(answersEl.children);
+  let removed=0;
+  for(let i=0;i<choices.length;i++){
+    if(i!==correct && removed<2){ choices[i].style.display='none'; removed++; }
+  }
+  document.querySelector('#50-btn').disabled=true;
+});
+document.querySelector('#skip-btn').addEventListener('click',()=>{ questionIndex++; nextQuestion(); });
+document.querySelector('#hint-btn').addEventListener('click',()=>{ alert(`Hint: Starts with "${questions[questionIndex].choices[questions[questionIndex].correct][0]}"`); document.querySelector('#hint-btn').disabled=true; });
+
+// Keyboard shortcuts
+window.addEventListener('keydown',(e)=>{
+  if(e.key>='1' && e.key<='4'){
+    const idx=parseInt(e.key,10)-1;
+    const btn = answersEl.querySelector(`[data-index="${idx}"]`);
+    if(btn && btn.style.display!=='none') btn.click();
+  }
+});
+
+// Start
+async function startGame(){
+  questions = await fetchQuestions();
+  questionIndex=0; score=0; streak=0; correctCount=0; wrongCount=0; timeBonus=0;
+  qTotalEl.textContent = TOTAL_QUESTIONS;
+  fetchLeaderboard();
+  nextQuestion();
+}
+
+// Load
+window.addEventListener('load',()=>{
+  startGame();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuizVerse — Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<style>
+body {
+  background: linear-gradient(120deg,#06081A,#6D28D9 25%,#0F172A 50%,#06B6D4 75%);
+  background-size: 300% 300%;
+  animation: gradientMove 18s ease infinite;
+  font-family: 'Poppins', sans-serif;
+  overflow-x: hidden;
+}
+@keyframes gradientMove {
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+.glass { background: rgba(255,255,255,0.06); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
+.badge { padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; display: inline-block; }
+.animate-fade-scale { animation: fadeScale 0.8s ease forwards; }
+@keyframes fadeScale { from { opacity:0; transform:scale(0.8) translateY(20px); } to { opacity:1; transform:scale(1) translateY(0); } }
+.podium { display:flex; justify-content:center; align-items:flex-end; gap:1rem; }
+.podium > div { text-align:center; padding:1rem; border-radius:1rem; }
+.podium img { border-radius:50%; border:3px solid white; }
+.achievement-card { transition: transform 0.3s ease; }
+.achievement-card:hover { transform: scale(1.1); }
+.progress-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.2); overflow:hidden; }
+.progress-fill { height: 100%; background: linear-gradient(to right,#facc15,#ec4899,#06b6d4); transition: width 1s ease; }
+</style>
+</head>
+<body class="text-white">
+
+<header class="flex justify-between items-center max-w-6xl mx-auto p-4">
+  <div class="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400">🚀 QuizVerse</div>
+  <div class="flex gap-4">
+    <button onclick="startGame()" class="px-4 py-2 rounded-xl glass hover:scale-105 transition">🎮 Start Game</button>
+    <button onclick="viewLeaderboard()" class="px-4 py-2 rounded-xl glass hover:scale-105 transition">🏆 Leaderboard</button>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+
+  <!-- Left: Profile & Stats -->
+  <section class="flex flex-col gap-6 md:col-span-1">
+    <div class="glass p-4 rounded-2xl flex items-center gap-4 animate-fade-scale">
+      <img id="avatar" class="w-16 h-16 rounded-full border-2 border-white/30" src="" alt="Avatar">
+      <div>
+        <div id="username" class="font-bold text-xl"></div>
+        <div id="user-rank" class="text-sm text-white/70"></div>
+        <div id="user-streak" class="text-sm text-white/70"></div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="glass p-4 rounded-2xl animate-fade-scale">
+      <h2 class="font-bold text-lg mb-2">📊 Stats</h2>
+      <div class="mb-2">Score: <span id="user-score">0</span></div>
+      <div class="progress-bar mb-2"><div id="score-bar" class="progress-fill" style="width:0%"></div></div>
+      <div class="mb-2">Accuracy: <span id="user-accuracy">0%</span></div>
+      <div class="progress-bar mb-2"><div id="accuracy-bar" class="progress-fill" style="width:0%"></div></div>
+      <div class="mb-2">Streak: <span id="user-streak-val">0</span></div>
+      <div class="progress-bar"><div id="streak-bar" class="progress-fill" style="width:0%"></div></div>
+    </div>
+
+    <!-- Achievements -->
+    <div class="glass p-4 rounded-2xl animate-fade-scale">
+      <h2 class="font-bold text-lg mb-2">🏅 Achievements</h2>
+      <div id="achievements" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+    </div>
+  </section>
+
+  <!-- Right: Podium + Game History -->
+  <section class="md:col-span-2 flex flex-col gap-6">
+    <div class="podium" id="podium"></div>
+
+    <div class="glass p-4 rounded-2xl animate-fade-scale">
+      <h2 class="font-bold text-lg mb-2">🕹 Recent Games</h2>
+      <div id="recentGames" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+    </div>
+
+    <!-- Chart -->
+    <div class="glass p-4 rounded-2xl animate-fade-scale">
+      <h2 class="font-bold text-lg mb-2">📈 Score Progress</h2>
+      <canvas id="scoreChart" class="w-full h-48"></canvas>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+const supabaseUrl = 'YOUR_SUPABASE_URL';
+const supabaseKey = 'YOUR_SUPABASE_KEY';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+let currentUserId = 1; // replace with logged-in user id
+let scoreChart;
+
+async function loadDashboard() {
+  // User data
+  const { data: user } = await supabase.from('users').select('*').eq('id', currentUserId).single();
+  if(user){
+    document.getElementById('username').textContent = user.username;
+    document.getElementById('avatar').src = user.avatar;
+    document.getElementById('user-streak').textContent = `🔥 Streak: ${user.streak}`;
+    document.getElementById('user-score').textContent = user.score;
+    document.getElementById('user-accuracy').textContent = `${user.accuracy}%`;
+    document.getElementById('user-streak-val').textContent = user.streak;
+
+    // Update progress bars
+    document.getElementById('score-bar').style.width = `${Math.min(user.score/1500*100,100)}%`;
+    document.getElementById('accuracy-bar').style.width = `${user.accuracy}%`;
+    document.getElementById('streak-bar').style.width = `${Math.min(user.streak/20*100,100)}%`;
+  }
+
+  // Personal rank
+  const { data: ranks } = await supabase.from('users').select('id, score').order('score',{ascending:false});
+  const rank = ranks.findIndex(u => u.id===currentUserId)+1;
+  document.getElementById('user-rank').textContent = `🏅 Rank: #${rank}`;
+
+  // Achievements
+  const { data: ach } = await supabase.from('achievements').select('*').eq('user_id',currentUserId);
+  const achDiv = document.getElementById('achievements');
+  achDiv.innerHTML='';
+  ach.forEach(a=>{
+    const card = document.createElement('div');
+    card.className='glass p-2 rounded-xl text-center animate-fade-scale';
+    card.innerHTML=`<div class="text-2xl">${a.icon}</div><div class="mt-1 text-sm">${a.achievement}</div>`;
+    achDiv.appendChild(card);
+  });
+
+  // Podium top 3
+  const { data: topUsers } = await supabase.from('users').select('*').order('score',{ascending:false}).limit(3);
+  const podiumDiv = document.getElementById('podium');
+  podiumDiv.innerHTML='';
+  topUsers.forEach((p,i)=>{
+    const glow=i===0?'rank-glow-1':i===1?'rank-glow-2':'rank-glow-3';
+    const size=i===0?'w-20 h-20':'w-16 h-16';
+    const medals=['👑','🥈','🥉'];
+    const el = document.createElement('div');
+    el.className=`glass ${glow} scale-110`;
+    el.innerHTML=`
+      <img class="${size} h-${size}" src="${p.avatar}" alt="${p.username}">
+      <h3 class="mt-2 font-bold">${medals[i]}</h3>
+      <div class="text-lg font-extrabold score">${p.score}</div>
+    `;
+    podiumDiv.appendChild(el);
+  });
+
+  // Recent games
+  const { data: recent } = await supabase.from('games').select('*').eq('user_id',currentUserId).order('played_at',{ascending:false}).limit(6);
+  const recentDiv = document.getElementById('recentGames');
+  recentDiv.innerHTML='';
+  recent.forEach(g=>{
+    const card=document.createElement('div');
+    card.className='glass p-2 rounded-xl flex justify-between animate-fade-scale';
+    const color = g.score>=1000?'text-emerald-400':g.score>=500?'text-amber-400':'text-red-400';
+    card.innerHTML=`<div class="${color} font-bold">Score: ${g.score}</div><div>Time: ${g.time_taken}s</div><div>${new Date(g.played_at).toLocaleDateString()}</div>`;
+    recentDiv.appendChild(card);
+  });
+
+  // Chart
+  const scores = recent.map(r=>r.score).reverse();
+  const labels = recent.map((r,i)=>`Game ${recent.length-i}`).reverse();
+  if(scoreChart) scoreChart.destroy();
+  const ctx = document.getElementById('scoreChart').getContext('2d');
+  scoreChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{label:'Score', data:scores, borderColor:'#facc15', backgroundColor:'rgba(250,204,21,0.2)', tension:0.3}]
+    },
+    options:{responsive:true, plugins:{legend:{display:false}}}
+  });
+}
+
+// Realtime
+supabase.from(`users:id=eq.${currentUserId}`).on('UPDATE',()=>loadDashboard()).subscribe();
+supabase.from('achievements').on('INSERT',()=>loadDashboard()).subscribe();
+supabase.from('games').on('INSERT',()=>loadDashboard()).subscribe();
+
+loadDashboard();
+
+function startGame(){ location.href='game.html'; }
+function viewLeaderboard(){ location.href='leaderboard.html'; }
+</script>
+</body>
+</html>

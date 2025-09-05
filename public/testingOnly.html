@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Supabase Auth + Rooms Test</title>
+</head>
+<body>
+  <h1>🚀 Supabase Room Test</h1>
+
+  <!-- Login -->
+  <h3>Login</h3>
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+
+  <!-- Create Room -->
+  <h3>Create Room</h3>
+  <input type="text" id="createRoomInput" placeholder="Enter Room Code (optional)">
+  <button onclick="createRoom()">Create Room</button>
+
+  <!-- Join Room -->
+  <h3>Join Room</h3>
+  <input type="text" id="joinRoomInput" placeholder="Enter Room Code">
+  <button onclick="joinRoom()">Join Room</button>
+
+  <pre id="logs"></pre>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://ktgdshgwvkaktdnaspxj.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0Z2RzaGd3dmtha3RkbmFzcHhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwNDgyNzEsImV4cCI6MjA3MjYyNDI3MX0.qcrhP34PY5rxc8i2wR3sZtCKQGiTAk6JQ2XWOdp26_w";
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const logs = document.getElementById("logs");
+    function log(msg) { logs.innerText += msg + "\n"; }
+
+    // ✅ Login
+    async function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) log("❌ Login failed: " + error.message);
+      else log("✅ Logged in as " + data.user.email);
+    }
+
+    // ✅ Create Room
+    async function createRoom() {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) return log("❌ Not logged in");
+
+      let code = document.getElementById("createRoomInput").value.trim();
+      if (!code) code = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+      const { data, error } = await supabase
+        .from("rooms")
+        .insert([{ room_code: code, host_id: user.id, quiz_status: "waiting" }])
+        .select();
+
+      if (error) log("❌ Create room failed: " + error.message);
+      else log("✅ Room created: " + JSON.stringify(data, null, 2));
+    }
+
+    // ✅ Join Room
+    async function joinRoom() {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) return log("❌ Not logged in");
+
+      const code = document.getElementById("joinRoomInput").value.trim();
+      if (!code) return log("⚠️ Enter a room code");
+
+      const { data, error } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("room_code", code)
+        .single();
+
+      if (error) log("❌ Join failed: " + error.message);
+      else log("✅ Joined room: " + JSON.stringify(data, null, 2));
+    }
+  </script>
+</body>
+</html>

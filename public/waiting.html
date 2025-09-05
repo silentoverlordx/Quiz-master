@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuizVerse | Waiting Room</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    h1, h2 { font-family: 'Bungee', cursive; }
+
+    /* Glowing room code */
+    .glow-text {
+      text-shadow: 0 0 10px rgba(255,255,255,0.8),
+                   0 0 20px rgba(255, 215, 0, 0.7),
+                   0 0 30px rgba(255, 105, 180, 0.6);
+    }
+
+    /* Player join animation */
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .player-card { animation: popIn 0.6s ease-out forwards; }
+
+    /* Floating avatars */
+    @keyframes floaty {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    .floaty { animation: floaty 3s infinite ease-in-out; }
+
+    /* Pulsing Start button */
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
+      50% { box-shadow: 0 0 25px rgba(255, 105, 180, 1); }
+      100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
+    }
+    .pulse-btn { animation: pulseGlow 2s infinite; }
+  </style>
+</head>
+<body class="bg-gradient-to-tr from-indigo-900 via-purple-800 to-indigo-900 text-white min-h-screen flex flex-col items-center justify-center px-6 py-10">
+
+  <main class="max-w-4xl w-full space-y-10 text-center">
+
+    <!-- Room Code -->
+    <section>
+      <h1 class="text-5xl font-extrabold mb-4">🚪 Waiting Room</h1>
+      <p class="text-lg text-gray-300">Share this code with your friends:</p>
+      <div id="room-code" class="mt-4 text-4xl font-bold glow-text">ABCD1234</div>
+    </section>
+
+    <!-- Player List -->
+    <section>
+      <h2 class="text-2xl text-amber-400 mb-4">👥 Players Joined</h2>
+      <div id="players-list" class="grid sm:grid-cols-2 gap-6 justify-center">
+        <!-- Players will appear here -->
+      </div>
+    </section>
+
+    <!-- Start Button -->
+    <section>
+      <button id="start-btn" class="bg-amber-500 hover:bg-amber-600 text-white font-bold text-2xl px-10 py-5 rounded-full shadow-lg pulse-btn transition-all">
+        🚀 Start Game
+      </button>
+    </section>
+
+  </main>
+
+  <script>
+    const playersList = document.getElementById("players-list");
+    const startBtn = document.getElementById("start-btn");
+
+    // Fake avatars for demo
+    const sampleAvatars = [
+      "https://api.dicebear.com/7.x/fun-emoji/svg?seed=Ace",
+      "https://api.dicebear.com/7.x/fun-emoji/svg?seed=Nova",
+      "https://api.dicebear.com/7.x/fun-emoji/svg?seed=Luna",
+      "https://api.dicebear.com/7.x/fun-emoji/svg?seed=Max",
+      "https://api.dicebear.com/7.x/fun-emoji/svg?seed=Zara",
+      "https://api.dicebear.com/7.x/fun-emoji/svg?seed=Kai"
+    ];
+
+    let playerCount = 0;
+
+    function addPlayer(username) {
+      const card = document.createElement("div");
+      card.className = "player-card bg-white text-gray-800 rounded-xl p-4 flex items-center gap-4 shadow-lg hover:scale-105 transition transform";
+
+      const img = document.createElement("img");
+      img.src = sampleAvatars[playerCount % sampleAvatars.length];
+      img.className = "w-14 h-14 rounded-full floaty";
+
+      const name = document.createElement("span");
+      name.className = "font-bold text-lg";
+      name.textContent = username;
+
+      card.appendChild(img);
+      card.appendChild(name);
+      playersList.appendChild(card);
+
+      // confetti burst
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
+
+      playerCount++;
+    }
+
+    // Demo: add players automatically every 2s
+    const demoNames = ["Prince", "Piyush", "Nova", "Luna", "Zara", "Kai"];
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < demoNames.length) {
+        addPlayer(demoNames[i]);
+        i++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 2000);
+
+    // Start button action
+    startBtn.addEventListener("click", () => {
+      confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
+      setTimeout(() => window.location.href = "game.html?room=ABCD1234", 1000);
+    });
+  </script>
+</body>
+</html>
