@@ -6,121 +6,85 @@
   <title>QuizVerse | Login</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
   <style>
     body { font-family: 'Inter', sans-serif; }
     h1 { font-family: 'Bungee', cursive; }
-
-    /* Floating Animation */
-    @keyframes floatCard {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
-    }
-    .floating { animation: floatCard 5s ease-in-out infinite; }
-
-    /* Fade In */
-    @keyframes fadeInUp {
-      0% { opacity: 0; transform: translateY(40px); }
-      100% { opacity: 1; transform: translateY(0); }
-    }
-    .fade-in { animation: fadeInUp 0.8s ease-out forwards; }
-
-    /* Glowing Input */
     .input-glow:focus {
       box-shadow: 0 0 15px rgba(236, 72, 153, 0.7);
       border-color: #ec4899;
     }
-
-    /* Gradient Button */
     .gradient-btn {
       background-size: 200% 200%;
       background-image: linear-gradient(270deg, #fbbf24, #ec4899, #8b5cf6, #fbbf24);
       animation: gradientShift 4s ease infinite;
+      color: white;
+      font-weight: bold;
+      border-radius: 12px;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      transition: 0.3s;
     }
+    .gradient-btn:hover { transform: scale(1.05); }
     @keyframes gradientShift {
       0% { background-position: 0% 50%; }
       50% { background-position: 100% 50%; }
       100% { background-position: 0% 50%; }
     }
-    .gradient-btn:hover {
-      box-shadow: 0 0 20px rgba(236, 72, 153, 0.8);
-      transform: scale(1.05);
-    }
-
-    /* Popup Modal */
-    .popup {
-      position: fixed; inset: 0;
-      display: flex; justify-content: center; align-items: center;
-      background: rgba(0,0,0,0.7);
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-    .popup.show { opacity: 1; pointer-events: auto; }
-    .popup-content {
-      background: white;
-      color: #333;
-      padding: 2rem;
-      border-radius: 1rem;
-      text-align: center;
-      max-width: 350px;
-      box-shadow: 0 0 20px rgba(236, 72, 153, 0.6);
-      animation: fadeInUp 0.5s ease forwards;
-    }
   </style>
 </head>
 <body class="min-h-screen flex items-center justify-center bg-gradient-to-tr from-indigo-900 via-purple-800 to-indigo-900 text-white px-4">
 
-  <div class="w-full max-w-md bg-white text-gray-900 rounded-2xl shadow-2xl p-8 space-y-6 floating fade-in">
-    <h1 class="text-3xl text-center font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-amber-400">
-      🔑 Login
-    </h1>
-    <p class="text-center text-gray-600">Welcome back, champ! Let’s battle again 🚀</p>
-    
-    <form id="login-form" class="space-y-4">
-      <div>
-        <label class="block text-sm font-semibold mb-1">Email</label>
-        <input type="email" id="email" placeholder="your@email.com" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none input-glow">
-      </div>
+<div class="w-full max-w-md bg-white text-gray-900 rounded-2xl shadow-2xl p-8 space-y-6">
+  <h1 class="text-3xl text-center font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-amber-400">
+    🔑 Login
+  </h1>
 
-      <div>
-        <label class="block text-sm font-semibold mb-1">Password</label>
-        <input type="password" id="password" placeholder="Enter your password" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none input-glow">
-      </div>
+  <form id="login-form" class="space-y-4">
+    <input type="email" id="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none input-glow" required>
+    <input type="password" id="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none input-glow" required>
+    <button type="submit" id="login-btn" class="w-full py-3 rounded-lg gradient-btn">Login</button>
+  </form>
 
-      <button type="submit" class="w-full py-3 rounded-lg font-bold text-white gradient-btn transition-all">
-        🚀 Login
-      </button>
-    </form>
+  <p class="text-sm text-center text-gray-600">
+    Don’t have an account? 
+    <a href="signup.html" class="text-pink-500 font-semibold hover:underline">Sign up</a>
+  </p>
+</div>
 
-    <p class="text-sm text-center text-gray-600">
-      Don’t have an account? 
-      <a href="signup.html" class="text-pink-500 font-semibold hover:underline">Sign up</a>
-    </p>
-  </div>
+<!-- Supabase -->
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
+<script>
+  const supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
 
-  <!-- Popup Modal -->
-  <div id="popup" class="popup">
-    <div class="popup-content">
-      <h2 class="text-xl font-bold mb-2">✅ Login Successful</h2>
-      <p class="mb-4">Welcome back to QuizVerse! 🎉</p>
-      <button onclick="closePopup()" class="px-6 py-2 rounded-lg bg-pink-500 text-white font-bold hover:bg-pink-600">Continue</button>
-    </div>
-  </div>
+  // If already logged in → jump to lobby
+  (async () => {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) window.location.href = "lobby.html";
+  })();
 
-  <script src="config.js"></script>
-  <script>
-    const popup = document.getElementById("popup");
+  // Handle login
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const btn = document.getElementById("login-btn");
 
-    document.getElementById("login-form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      popup.classList.add("show");
-    });
+    btn.disabled = true;
+    btn.innerText = "⏳ Logging in...";
 
-    function closePopup() {
-      popup.classList.remove("show");
-      window.location.href = "lobby.html"; // redirect to homepage after login
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      alert("❌ " + error.message);
+      btn.disabled = false;
+      btn.innerText = "Login";
+    } else {
+      // 🚀 Redirect instantly
+      window.location.href = "lobby.html";
     }
-  </script>
+  });
+</script>
 
 </body>
 </html>
